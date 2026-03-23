@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:Usersjunyoungjunyoungsourcecliply -name *.yaml -o -name *.yml)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}
