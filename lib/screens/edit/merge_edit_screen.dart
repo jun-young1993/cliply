@@ -7,6 +7,8 @@ import 'package:cliply/providers/export_provider.dart';
 import 'package:cliply/providers/project_provider.dart';
 import 'package:cliply/screens/result/result_screen.dart';
 import 'package:cliply/screens/shared/aspect_ratio_selector.dart';
+import 'package:cliply/screens/shared/error_dialog.dart';
+import 'package:cliply/screens/shared/export_quality_selector.dart';
 import 'package:cliply/screens/shared/trim_slider.dart';
 import 'package:cliply/services/ffmpeg_service.dart';
 import 'package:cliply/services/permission_service.dart';
@@ -41,14 +43,15 @@ class _MergeEditScreenState extends ConsumerState<MergeEditScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ResultScreen(outputPath: state.outputPath),
+            builder: (_) => ResultScreen(
+              outputPath: state.outputPath,
+              editMode: EditMode.merge,
+            ),
           ),
         );
         ref.read(exportProvider.notifier).reset();
       } else if (state is ExportError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message)),
-        );
+        showErrorDialog(context, message: state.message);
         ref.read(exportProvider.notifier).reset();
       }
     });
@@ -103,6 +106,8 @@ class _MergeEditScreenState extends ConsumerState<MergeEditScreen> {
                           .read(projectProvider.notifier)
                           .reorderClips(oldIdx, newIdx);
                     },
+                    onToggleMute: (slotIndex) =>
+                        ref.read(projectProvider.notifier).toggleClipMute(slotIndex),
                   ),
           ),
 
@@ -112,6 +117,12 @@ class _MergeEditScreenState extends ConsumerState<MergeEditScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
               child: TrimSlider(clip: selectedClip),
             ),
+
+          // 품질 선택
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: ExportQualitySelector(),
+          ),
 
           // 하단 버튼 + 진행바
           _BottomBar(
@@ -274,6 +285,7 @@ class _ClipList extends StatelessWidget {
     required this.onSelect,
     required this.onDelete,
     required this.onReorder,
+    required this.onToggleMute,
   });
 
   final List<VideoClip> clips;
@@ -281,6 +293,7 @@ class _ClipList extends StatelessWidget {
   final void Function(int index) onSelect;
   final void Function(int slotIndex) onDelete;
   final void Function(int oldIndex, int newIndex) onReorder;
+  final void Function(int slotIndex) onToggleMute;
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +311,7 @@ class _ClipList extends StatelessWidget {
           isSelected: isSelected,
           onTap: () => onSelect(index),
           onDelete: () => onDelete(clip.slotIndex),
+          onToggleMute: () => onToggleMute(clip.slotIndex),
         );
       },
     );
@@ -312,6 +326,7 @@ class _ClipTile extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     required this.onDelete,
+    required this.onToggleMute,
   });
 
   final VideoClip clip;
@@ -319,6 +334,7 @@ class _ClipTile extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback onToggleMute;
 
   @override
   Widget build(BuildContext context) {
@@ -384,6 +400,17 @@ class _ClipTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (clip.hasAudio)
+                IconButton(
+                  icon: Icon(
+                    clip.muted ? Icons.volume_off : Icons.volume_up,
+                    color: clip.muted
+                        ? colorScheme.error
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: onToggleMute,
+                  visualDensity: VisualDensity.compact,
+                ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: onDelete,

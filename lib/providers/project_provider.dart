@@ -1,5 +1,7 @@
 import 'package:cliply/models/aspect_ratio_type.dart';
 import 'package:cliply/models/edit_mode.dart';
+import 'package:cliply/models/export_quality.dart';
+import 'package:cliply/models/split_layout.dart';
 import 'package:cliply/models/video_clip.dart';
 import 'package:cliply/models/video_project.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,6 +60,15 @@ class ProjectNotifier extends Notifier<VideoProject?> {
     state = project.copyWith(clips: reindexed);
   }
 
+  void setSplitLayout(SplitLayout layout) {
+    final project = state;
+    if (project == null) return;
+    // 분할 수가 줄면 초과 슬롯의 클립 제거
+    final maxSlots = layout == SplitLayout.two ? 2 : 3;
+    final clips = project.clips.where((c) => c.slotIndex < maxSlots).toList();
+    state = project.copyWith(splitLayout: layout, clips: clips);
+  }
+
   void setAspectRatio(AspectRatioType ratio) {
     final project = state;
     if (project == null) return;
@@ -68,6 +79,22 @@ class ProjectNotifier extends Notifier<VideoProject?> {
     final project = state;
     if (project == null) return;
     state = project.copyWith(outputPath: path);
+  }
+
+  void setQuality(ExportQuality quality) {
+    final project = state;
+    if (project == null) return;
+    state = project.copyWith(quality: quality);
+  }
+
+  void toggleClipMute(int slotIndex) {
+    final project = state;
+    if (project == null) return;
+    final clips = project.clips.map((c) {
+      if (c.slotIndex != slotIndex) return c;
+      return c.copyWith(muted: !c.muted);
+    }).toList();
+    state = project.copyWith(clips: clips);
   }
 
   void reset() => state = null;

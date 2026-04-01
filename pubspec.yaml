@@ -44,11 +44,17 @@ dependencies:
   share_plus: ^12.0.1
   permission_handler: ^12.0.1
   device_info_plus: ^12.3.0
-  flutter_ui_kit_l10n: ^0.0.13
-  flutter_ui_kit_widget: ^0.0.7
-  flutter_ui_kit_setting: ^0.1.19
+  shared_preferences: ^2.3.0
+
   flutter_screenutil: ^5.9.3
+
+
+  # flutter ui kits
   flutter_ui_kit_theme: ^0.1.19
+  # flutter_ui_kit_google_mobile_ads: ^0.1.18
+  # flutter_ui_kit_setting: ^0.1.19
+  flutter_ui_kit_l10n: ^0.0.13
+  # flutter_ui_kit_firebase_auth_gate: ^0.0.3
 
 dev_dependencies:
   flutter_test:

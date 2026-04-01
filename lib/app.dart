@@ -16,7 +16,8 @@ class CliplyApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (_, child) => DsThemeBuilder(
-        controller: themeController, 
+        controller: themeController,
+        child: child,
         builder: (theme, child) => MaterialApp(
           title: 'Cliply',
           debugShowCheckedModeBanner: false,

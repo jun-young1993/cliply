@@ -11,6 +11,7 @@ class VideoClip {
     required this.slotIndex,
     required this.hasAudio,
     this.thumbnailPath,
+    this.muted = false,
   })  : assert(endTime > startTime, 'endTime must be greater than startTime'),
         assert(slotIndex >= 0, 'slotIndex must be >= 0');
 
@@ -26,6 +27,9 @@ class VideoClip {
 
   final String? thumbnailPath;
 
+  /// 사용자가 이 클립의 오디오를 음소거했는지 여부
+  final bool muted;
+
   Duration get trimmedDuration => endTime - startTime;
 
   VideoClip copyWith({
@@ -37,6 +41,7 @@ class VideoClip {
     int? slotIndex,
     bool? hasAudio,
     String? thumbnailPath,
+    bool? muted,
   }) {
     return VideoClip(
       id: id ?? this.id,
@@ -47,6 +52,7 @@ class VideoClip {
       slotIndex: slotIndex ?? this.slotIndex,
       hasAudio: hasAudio ?? this.hasAudio,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      muted: muted ?? this.muted,
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:cliply/models/aspect_ratio_type.dart';
 import 'package:cliply/models/edit_mode.dart';
+import 'package:cliply/models/export_quality.dart';
 import 'package:cliply/models/split_layout.dart';
 import 'package:cliply/models/video_clip.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +15,7 @@ class VideoProject {
     required this.clips,
     required this.createdAt,
     this.outputPath,
+    this.quality = ExportQuality.medium,
   });
 
   factory VideoProject.create({
@@ -38,6 +40,7 @@ class VideoProject {
   final List<VideoClip> clips;
   final DateTime createdAt;
   final String? outputPath;
+  final ExportQuality quality;
 
   bool get canExport {
     if (editMode == EditMode.merge) return clips.length >= 2;
@@ -57,6 +60,7 @@ class VideoProject {
     List<VideoClip>? clips,
     DateTime? createdAt,
     String? outputPath,
+    ExportQuality? quality,
   }) {
     return VideoProject(
       id: id ?? this.id,
@@ -66,6 +70,7 @@ class VideoProject {
       clips: clips ?? this.clips,
       createdAt: createdAt ?? this.createdAt,
       outputPath: outputPath ?? this.outputPath,
+      quality: quality ?? this.quality,
     );
   }
 }

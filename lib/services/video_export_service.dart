@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cliply/models/aspect_ratio_type.dart';
 import 'package:cliply/models/edit_mode.dart';
+import 'package:cliply/models/export_quality.dart';
 import 'package:cliply/models/video_project.dart';
 import 'package:cliply/services/ffmpeg_service.dart';
 import 'package:path/path.dart' as p;
@@ -41,12 +42,14 @@ class VideoExportService {
     final slotW = isHorizontal ? outW : outW ~/ count;
     final slotH = isHorizontal ? outH ~/ count : outH;
 
-    final trimParts = <String>[];
+    final filterParts = <String>[];
+
+    // 비디오 필터
     for (var i = 0; i < count; i++) {
       final clip = clips[i];
       final start = _sec(clip.startTime);
       final end = _sec(clip.endTime);
-      trimParts.add(
+      filterParts.add(
         '[$i:v]trim=start=$start:end=$end,setpts=PTS-STARTPTS,'
         'scale=$slotW:$slotH,setsar=1[v$i]',
       );
@@ -54,24 +57,57 @@ class VideoExportService {
 
     final stackIn = List.generate(count, (i) => '[v$i]').join('');
     final stackFilter = isHorizontal
-        ? '${stackIn}vstack=inputs=$count[out]'
-        : '${stackIn}hstack=inputs=$count[out]';
+        ? '${stackIn}vstack=inputs=$count[vout]'
+        : '${stackIn}hstack=inputs=$count[vout]';
+    filterParts.add(stackFilter);
 
-    final filterComplex = '${trimParts.join(';')};$stackFilter';
+    // 오디오 필터 — 음소거 아닌 클립만 트림 후 믹스
+    final audioLabels = <String>[];
+    for (var i = 0; i < count; i++) {
+      final clip = clips[i];
+      if (!clip.muted && clip.hasAudio) {
+        final start = _sec(clip.startTime);
+        final end = _sec(clip.endTime);
+        filterParts.add(
+          '[$i:a]atrim=start=$start:end=$end,asetpts=PTS-STARTPTS[a$i]',
+        );
+        audioLabels.add('[a$i]');
+      }
+    }
+
+    String? audioOutputLabel;
+    if (audioLabels.length == 1) {
+      audioOutputLabel = audioLabels.first;
+    } else if (audioLabels.length > 1) {
+      final mixIn = audioLabels.join('');
+      filterParts.add(
+        '${mixIn}amix=inputs=${audioLabels.length}:normalize=0:dropout_transition=0[amix]',
+      );
+      audioOutputLabel = '[amix]';
+    }
+
+    final filterComplex = filterParts.join(';');
 
     final totalMs = clips
         .map((c) => c.trimmedDuration.inMilliseconds)
         .reduce((a, b) => a < b ? a : b);
 
-    // 파일 경로를 별도 인수로 전달 (쉘 인젝션 방지)
     final args = <String>[];
     for (final clip in clips) {
       args.addAll(['-i', clip.filePath]);
     }
     args.addAll(['-filter_complex', filterComplex]);
-    args.addAll(['-map', '[out]', '-map', '0:a?']);
-    args.addAll(['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']);
-    args.addAll(['-c:a', 'aac', '-shortest']);
+    args.addAll(['-map', '[vout]']);
+    if (audioOutputLabel != null) {
+      args.addAll(['-map', audioOutputLabel]);
+      args.addAll(['-c:a', 'aac']);
+    }
+    args.addAll([
+      '-c:v', 'libx264',
+      '-preset', project.quality.preset,
+      '-crf', project.quality.crf,
+      '-shortest',
+    ]);
     args.add(outputPath);
 
     final ok = await _ffmpeg.executeWithArgs(
@@ -113,13 +149,12 @@ class VideoExportService {
         'scale=$outW:$outH,setsar=1[v$i]',
       );
 
-      // hasAudio는 영상 선택 시 이미 감지됨 (캐시) — 여기서 FFprobe 재호출 없음
-      if (clip.hasAudio) {
+      // 음소거이거나 오디오 없는 클립은 무음 신호로 대체
+      if (clip.hasAudio && !clip.muted) {
         trimParts.add(
           '[$i:a]atrim=start=$start:end=$end,asetpts=PTS-STARTPTS[a$i]',
         );
       } else {
-        // 오디오 없는 클립은 무음 신호로 대체
         trimParts.add(
           'anullsrc=r=44100:cl=stereo,'
           'atrim=duration=${durationSec.toStringAsFixed(3)}[a$i]',
@@ -142,8 +177,12 @@ class VideoExportService {
     }
     args.addAll(['-filter_complex', filterComplex]);
     args.addAll(['-map', '[vout]', '-map', '[aout]']);
-    args.addAll(['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']);
-    args.addAll(['-c:a', 'aac']);
+    args.addAll([
+      '-c:v', 'libx264',
+      '-preset', project.quality.preset,
+      '-crf', project.quality.crf,
+      '-c:a', 'aac',
+    ]);
     args.add(outputPath);
 
     final ok = await _ffmpeg.executeWithArgs(

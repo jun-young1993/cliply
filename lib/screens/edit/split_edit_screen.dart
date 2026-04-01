@@ -2,11 +2,14 @@ import 'dart:io';
 
 import 'package:cliply/models/aspect_ratio_type.dart';
 import 'package:cliply/models/edit_mode.dart';
+import 'package:cliply/models/split_layout.dart';
 import 'package:cliply/models/video_clip.dart';
 import 'package:cliply/providers/export_provider.dart';
 import 'package:cliply/providers/project_provider.dart';
 import 'package:cliply/screens/result/result_screen.dart';
 import 'package:cliply/screens/shared/aspect_ratio_selector.dart';
+import 'package:cliply/screens/shared/error_dialog.dart';
+import 'package:cliply/screens/shared/export_quality_selector.dart';
 import 'package:cliply/screens/shared/trim_slider.dart';
 import 'package:cliply/services/ffmpeg_service.dart';
 import 'package:cliply/services/permission_service.dart';
@@ -45,14 +48,15 @@ class _SplitEditScreenState extends ConsumerState<SplitEditScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ResultScreen(outputPath: state.outputPath),
+            builder: (_) => ResultScreen(
+              outputPath: state.outputPath,
+              editMode: widget.mode,
+            ),
           ),
         );
         ref.read(exportProvider.notifier).reset();
       } else if (state is ExportError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message)),
-        );
+        showErrorDialog(context, message: state.message);
         ref.read(exportProvider.notifier).reset();
       }
     });
@@ -77,6 +81,26 @@ class _SplitEditScreenState extends ConsumerState<SplitEditScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: const AspectRatioSelector(),
+          ),
+
+          // 2분할 / 3분할 선택
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: SegmentedButton<SplitLayout>(
+              segments: const [
+                ButtonSegment(value: SplitLayout.two, label: Text('2분할')),
+                ButtonSegment(value: SplitLayout.three, label: Text('3분할')),
+              ],
+              selected: {project?.splitLayout ?? SplitLayout.two},
+              onSelectionChanged: project == null
+                  ? null
+                  : (set) => ref
+                      .read(projectProvider.notifier)
+                      .setSplitLayout(set.first),
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
           ),
 
           // 2. 분할 미리보기
@@ -108,6 +132,8 @@ class _SplitEditScreenState extends ConsumerState<SplitEditScreen> {
               },
               onRemove: (slotIndex) =>
                   ref.read(projectProvider.notifier).removeClip(slotIndex),
+              onToggleMute: (slotIndex) =>
+                  ref.read(projectProvider.notifier).toggleClipMute(slotIndex),
             ),
           ),
 
@@ -120,7 +146,13 @@ class _SplitEditScreenState extends ConsumerState<SplitEditScreen> {
           else
             const Spacer(),
 
-          // 5. 하단 버튼
+          // 5. 품질 선택
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: ExportQualitySelector(),
+          ),
+
+          // 6. 하단 버튼
           _BottomBar(
             canExport: project?.canExport ?? false,
             isExporting: isExporting,
@@ -305,6 +337,7 @@ class _SlotGrid extends StatelessWidget {
     required this.onSlotTap,
     required this.onAddVideo,
     required this.onRemove,
+    required this.onToggleMute,
   });
 
   final List<VideoClip> clips;
@@ -314,6 +347,7 @@ class _SlotGrid extends StatelessWidget {
   final void Function(int) onSlotTap;
   final void Function(int) onAddVideo;
   final void Function(int) onRemove;
+  final void Function(int) onToggleMute;
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +432,6 @@ class _SlotGrid extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
@@ -407,6 +440,20 @@ class _SlotGrid extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (clip.hasAudio)
+                          GestureDetector(
+                            onTap: () => onToggleMute(i),
+                            child: Icon(
+                              clip.muted
+                                  ? Icons.volume_off
+                                  : Icons.volume_up,
+                              size: 16,
+                              color: clip.muted
+                                  ? colorScheme.error
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () => onRemove(i),
                           child: Icon(

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(find C:Usersjunyoungjunyoungsourcecliply -name *.yaml -o -name *.yml)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(flutter pub:*)",
+      "Bash(flutter test:*)",
+      "Bash(flutter analyze:*)",
+      "Skill(plan-ceo-review)"
     ]
   }
 }
